@@ -5,6 +5,8 @@ import { assets } from "../../assets/assets";
 import humanizeDuration from "humanize-duration";
 import Footer from "../../components/students/Footer";
 import Youtube from "react-youtube";
+import axios from "axios";
+import { toast } from "react-toastify";
 
 const CourseDetails = () => {
   const { id } = useParams();
@@ -20,12 +22,64 @@ const CourseDetails = () => {
     calculateCourseDuration,
     calculateChapterTime,
     currency,
+    backendUrl,
+    userData,
+    getToken
   } = useContext(AppContext);
 
+  const fetchCourseData = async ()=>{
+    try {
+      const {data} = await axios.get(backendUrl + '/api/course/' + id)
+
+      if(data.success){
+        setCourseData(data.courseData)
+      }else{
+        toast.error(data.message)
+      }
+
+    } catch (error) {
+      toast.error(error.message)
+
+    }
+
+  }
+
+  const enrollCourse = async ()=>{
+    try {
+      if(!userData){
+        return toast.warn('Login to Enroll')
+      }
+      if(isAlreadyEnrolled){
+        return toast.warn('Already Enrolled')
+      }
+      const token = await getToken();
+
+      const {data} = await axios.post(backendUrl + '/api/user/purchase',{courseId:
+        courseData._id}, {headers: { Authorization: `Bearer ${token}`}})
+        if (data.success) {
+          const {session_url} = data
+          window.location.replace(session_url)
+        }else{
+          toast.error(data.message)
+        }
+
+    } catch (error) {
+      toast.error(data.message)
+
+    }
+  }
+
   useEffect(() => {
-    const findCourse = allCourses.find((course) => course._id === id);
-    setCourseData(findCourse);
-  }, [allCourses, id]);
+    fetchCourseData()
+  }, []);
+
+  
+  useEffect(() => {
+    if(userData && courseData){
+      setIsAlreadyEnrolled(userData.enrolledCourses.includes(courseData._id))
+    }
+  }, [userData, courseData]);
+
 
   const toggleSection = (index) => {
     setOpenSections((prev) => ({
@@ -79,17 +133,24 @@ const CourseDetails = () => {
               ))}
             </div>
             <p className="text-blue-600">
+              {/*
               ({courseData.courseRatings.length}{" "}
-              {courseData.courseRatings.length > 1 ? "ratings" : "rating"})
+              {courseData.courseRatings.length > 1 ? "ratings" : "rating"}) */}
+               ({courseData?.courseRatings?.length || 0}{" "}
+  {(courseData?.courseRatings?.length || 0) > 1 ? "ratings" : "rating"})
+
             </p>
             <p>
-              {courseData.enrolledStudents.length}{" "}
-              {courseData.enrolledStudents.length > 1 ? "students" : "student"}
+             {/* {courseData.enrolledStudents.length}{" "}  */}
+              {/* {courseData.enrolledStudents.length > 1 ? "students" : "student"} */}
+              {courseData?.enrolledStudents?.length || 0}{" "}
+              {(courseData?.courseRatings?.length || 0) > 1 ? "ratings" : "rating"})
+            
             </p>
           </div>
 
           <p className="text-sm">
-            Course by <span className="text-blue-600 underline">StudyHunt</span>
+            Course by <span className="text-blue-600 underline">{courseData.educator.name}</span>
           </p>
 
           {/* Course Structure */}
@@ -97,7 +158,8 @@ const CourseDetails = () => {
             <h2 className="text-xl font-semibold">Course Structure</h2>
 
             <div className="pt-5">
-              {courseData.courseContent.map((chapter, index) => (
+              {/*{courseData.courseContent.map((chapter, index) => ( */}
+              {courseData?.courseContent?.map((chapter, index) => (
                 <div
                   key={index}
                   className="border border-gray-300 bg-white mb-2 rounded"
@@ -130,7 +192,8 @@ const CourseDetails = () => {
                     }`}
                   >
                     <ul className="list-disc md:pl-10 pl-4 pr-4 py-2 text-gray-600 border-t border-gray-300">
-                      {chapter.chapterContent.map((lecture, i) => (
+                     {/* {chapter.chapterContent.map((lecture, i) => ( */}
+                        {chapter?.chapterContent?.map((lecture, i) => (
                         <li key={i} className="flex items-start gap-2 py-1">
                           <img
                             src={assets.play_icon}
@@ -244,10 +307,10 @@ const CourseDetails = () => {
               </div>
             </div>
 
-            <button className="md:mt-6 mt-4 w-full py-3 rounded bg-blue-600 text-white font-medium">
+            <button onClick={enrollCourse} className="md:mt-6 mt-4 w-full py-3 rounded bg-blue-600 text-white font-medium">
               {isAlreadyEnrolled ? "Already Enrolled" : "Enroll Now"}
             </button>
-
+            
             <div className="pt-6">
               <p className="md:text-xl text-lg font-medium text-gray-800">
                 What's in the course?
