@@ -2,29 +2,38 @@ import React, { useContext, useEffect, useState } from 'react'
 import { assets, dummyDashboardData } from '../../assets/assets'
 import { AppContext } from '../../context/AppContext'
 import Loading from '../../components/students/Loading'
+import axios from 'axios'
+import { toast } from 'react-toastify'
 
 const Dashboard = () => {
-  const { currency } = useContext(AppContext)
+
+  const { currency, backendUrl, isEducator, getToken } = useContext(AppContext)
   const [dashboardData, setDashboardData] = useState(null)
 
   const fetchDashboardData = async () => {
     try {
-      // Simulated API call delay
-      setTimeout(() => {
-        setDashboardData(dummyDashboardData)
-      }, 500)
-    } catch (error) {
-      console.error('Error fetching dashboard data:', error)
+      const token = await getToken()
+      const { data } = await axios.get(backendUrl + '/api/educator/dashboard', {headers: { Authorization: `Bearer ${token}`}})
+
+      if (data.success){
+        setDashboardData(data.dashboardData)
+      }else{
+        toast.error(data.message)
+      }
+    } catch (error){
+      toast.error(error.message)
     }
   }
 
   useEffect(() => {
-    fetchDashboardData()
-  }, [])
+    if(isEducator){
+      fetchDashboardData()
+    }
+  }, [isEducator])
 
-  if (!dashboardData) return <Loading />
 
-  return (
+
+  return dashboardData ? (
     <div className='min-h-screen flex flex-col items-start justify-between gap-8 md:p-8 md:pb-0 p-4 pt-8 pb-0'>
       <div className='space-y-5'>
 
@@ -90,7 +99,7 @@ const Dashboard = () => {
 
       </div>
     </div>
-  )
+  ) : <Loading/>
 }
 
 export default Dashboard
