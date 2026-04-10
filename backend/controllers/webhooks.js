@@ -68,13 +68,14 @@ export const stripeWebhooks = async(request, response)=>{
     event = Stripe.webhooks.constructEvent(request.body, sig, process.env.STRIPE_WEBHOOK_SECRET);
   }
   catch (err) {
-    response.status(400).send(`Webhook Error: ${err.message}`);
+     return response.status(400).send(`Webhook Error: ${err.message}`);
   }
 
 
    // Handle the event
   switch (event.type) {
     case 'payment_intent.succeeded':{
+      console.log("PAYMENT SUCCESS HIT");
       const paymentIntent = event.data.object;
       const paymentIntentId = paymentIntent.id;
 
@@ -85,13 +86,14 @@ export const stripeWebhooks = async(request, response)=>{
       const { purchaseId } = session.data[0].metadata;
 
       const purchaseData = await Purchase.findById(purchaseId)
+      if (!purchaseData) return;
       const userData = await User.findById(purchaseData.userId)
       const courseData = await Course.findById(purchaseData.courseId.toString())
 
-      courseData.enrolledStudents.push(userData)
+      courseData.enrolledStudents.push(userData._id)
       await courseData.save()
 
-      userData.enrolledCourses.push(courseData._Id)
+      userData.enrolledCourses.push(courseData._id)
       await userData.save()
        
       purchaseData.status = 'completed'
@@ -111,6 +113,8 @@ export const stripeWebhooks = async(request, response)=>{
 
       const { purchaseId } = session.data[0].metadata;
       const purchaseData = await Purchase.findById(purchaseId)
+      if (!purchaseData) return;
+
       purchaseData.status = 'failed'
       await purchaseData.save()
 
